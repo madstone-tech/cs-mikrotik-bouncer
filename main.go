@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	_ "github.com/joho/godotenv/autoload"
 
@@ -18,6 +20,7 @@ import (
 var addr string = os.Getenv("ADDR")
 var username string = os.Getenv("USERNAME")
 var password string = os.Getenv("PASSWORD")
+var resId string
 
 type Blacklist struct {
 	Address string `json:"address"`
@@ -61,35 +64,102 @@ func addAddress(ip string, duration string, name string) {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Status: %d\n", res.StatusCode)
-	fmt.Printf("Body: %s\n", string(resBody))
+	fmt.Printf("Adding Status: %d\n", res.StatusCode)
+	fmt.Printf("Adding Body: %s\n", string(resBody))
+}
+
+func getAddress(ip string, name string) {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	client := &http.Client{Transport: tr}
+
+	getAddr := fmt.Sprintf("https://%s/rest/ip/firewall/address-list", addr)
+
+	req, err := http.NewRequest(http.MethodGet, getAddr, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	req.SetBasicAuth(username, password)
+
+	res, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer res.Body.Close()
+
+	resBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Getting Status: %d\n", res.StatusCode)
+	fmt.Printf("Getting Body: %s\n", string(resBody))
+
+	var resArray []map[string]interface{}
+
+	_ = json.Unmarshal(resBody, &resArray)
+
+	//fmt.Println("getter", resArray)
+
+	var noCidr string = ip[:strings.IndexByte(ip, '/')]
+
+	for i := range resArray {
+		fmt.Println("array fired")
+		if resArray[i]["address"] == noCidr {
+			fmt.Println("Found", resArray[i]["address"], resArray[i][".id"])
+			resId = fmt.Sprintf("%v", resArray[i][".id"])
+		}
+	}
 }
 
 func delAddress(ip string, duration string, name string) {
 
-	//getAddr := fmt.Sprintf("https://%s/rest/ip/firewall/address-list", addr)
-	//delAddr := fmt.Sprintf("https://%s/rest/ip/firewall/address-list/remove", addr)
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
-	// tr := &http.Transport{
-	// 	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	// }
+	getAddress(ip, name)
 
-	// client := &http.Client{Transport: tr}
+	delAddr := fmt.Sprintf("https://%s/rest/ip/firewall/address-list/%s", addr, resId)
 
-	fmt.Println("deleting ip", ip, duration, name)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
 
-	// get, err := http.Get(getAddr, "application/json")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	client := &http.Client{Transport: tr}
 
-	// defer get.Body.Close()
+	req, err := http.NewRequest(http.MethodDelete, delAddr, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// fmt.Println(get.Body)
+	req.SetBasicAuth(username, password)
 
-	// req, err := http.Post(delAddr, "application/json", bytes.NewBuffer(body))
-	// defer req.Body.Close()
+	res, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	defer res.Body.Close()
+
+	resBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Deleting Status: %d\n", res.StatusCode)
+	fmt.Printf("Deleting Body: %s\n", string(resBody))
 }
 
 func main() {
@@ -100,21 +170,12 @@ func main() {
 	}
 
 	flag.Parse()
-	fmt.Println("ADDR:", addr)
-
-	//fmt.Println(flag.Args())
-
-	// blacklist := Blacklist{
-	// 	Address: flag.Args()[1],
-	// 	Timeout: flag.Args()[2],
-	// 	List:    flag.Args()[3],
-	// }
 
 	if flag.Arg(0) == "add" {
-		fmt.Println("Add", flag.Arg(1))
+		//fmt.Println("Add", flag.Arg(1))
 		addAddress(flag.Arg(1), flag.Arg(2), flag.Arg(3))
 	} else {
-		fmt.Println("deleting ip", flag.Arg(1))
+		//fmt.Println("deleting ip", flag.Arg(1))
 		delAddress(flag.Arg(1), flag.Arg(2), flag.Arg(3))
 	}
 }
