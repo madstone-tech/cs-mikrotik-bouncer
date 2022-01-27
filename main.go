@@ -12,7 +12,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	//_ "github.com/joho/godotenv/autoload"
 )
 
 var addr string = os.Getenv("ADDR")
@@ -28,10 +27,6 @@ type Blacklist struct {
 
 func addAddress(ip string, duration string, name string) {
 
-	// err := godotenv.Load()
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
 	re := regexp.MustCompile("[a-z].")
 	txt := duration
 	split := re.Split(txt, -1)
@@ -78,11 +73,6 @@ func addAddress(ip string, duration string, name string) {
 
 func getAddress(ip string, name string) {
 
-	// err := godotenv.Load()
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
-
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -117,8 +107,6 @@ func getAddress(ip string, name string) {
 
 	_ = json.Unmarshal(resBody, &resArray)
 
-	//fmt.Println("getter", resArray)
-
 	var noCidr string = ip[:strings.IndexByte(ip, '/')]
 
 	for i := range resArray {
@@ -131,11 +119,6 @@ func getAddress(ip string, name string) {
 }
 
 func delAddress(ip string, duration string, name string) {
-
-	// err := godotenv.Load()
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
 
 	getAddress(ip, name)
 
@@ -172,18 +155,11 @@ func delAddress(ip string, duration string, name string) {
 
 func main() {
 
-	// err := godotenv.Load()
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
-
 	flag.Parse()
 
 	if flag.Arg(0) == "add" {
-		//fmt.Println("Add", flag.Arg(1))
 		addAddress(flag.Arg(1), flag.Arg(2), flag.Arg(3))
 	} else {
-		//fmt.Println("deleting ip", flag.Arg(1))
 		delAddress(flag.Arg(1), flag.Arg(2), flag.Arg(3))
 	}
 }
