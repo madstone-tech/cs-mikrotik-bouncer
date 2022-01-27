@@ -1,4 +1,4 @@
-module github.com/madstone-tech/cs-mikrotik-provider
+module github.com/madstone-tech/cs-mikrotik-bouncer
 
 go 1.17
 
