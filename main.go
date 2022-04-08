@@ -10,8 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
-	"strings"
+	"time"
 )
 
 var addr string = os.Getenv("ADDR")
@@ -27,16 +26,8 @@ type Blacklist struct {
 
 func addAddress(ip string, duration string, name string) {
 
-	re := regexp.MustCompile("[a-z].")
-	txt := duration
-	split := re.Split(txt, -1)
-	set := []string{}
-	for i := range split {
-		set = append(set, split[i])
-	}
-
-	rosDuration := fmt.Sprintf(set[0] + ":" + set[1] + ":" + set[2])
-	fmt.Println(rosDuration)
+	ds := fmt.Sprintf("%ss", duration)
+	durationSeconds, _ := time.ParseDuration(ds)
 
 	addAddr := fmt.Sprintf("https://%s/rest/ip/firewall/address-list/add", addr)
 
@@ -46,7 +37,7 @@ func addAddress(ip string, duration string, name string) {
 
 	client := &http.Client{Transport: tr}
 
-	data := []byte(fmt.Sprintf(`{"address":"%s","list":"%s","timeout":"%s"}`, ip, name, rosDuration))
+	data := []byte(fmt.Sprintf(`{"address":"%s","list":"%s","timeout":"%s"}`, ip, name, durationSeconds))
 
 	req, err := http.NewRequest(http.MethodPost, addAddr, bytes.NewBuffer(data))
 	if err != nil {
@@ -71,7 +62,7 @@ func addAddress(ip string, duration string, name string) {
 	fmt.Printf("Adding Body: %s\n", string(resBody))
 }
 
-func getAddress(ip string, name string) {
+func getAddress(ip string) {
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -100,18 +91,19 @@ func getAddress(ip string, name string) {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Getting Status: %d\n", res.StatusCode)
-	fmt.Printf("Getting Body: %s\n", string(resBody))
+	bs := string(resBody)
+
+	fmt.Println(bs)
 
 	var resArray []map[string]interface{}
 
 	_ = json.Unmarshal(resBody, &resArray)
 
-	var noCidr string = ip[:strings.IndexByte(ip, '/')]
+	fmt.Printf("%v", resArray)
 
 	for i := range resArray {
 		fmt.Println("array fired")
-		if resArray[i]["address"] == noCidr {
+		if resArray[i]["address"] == ip {
 			fmt.Println("Found", resArray[i]["address"], resArray[i][".id"])
 			resId = fmt.Sprintf("%v", resArray[i][".id"])
 		}
@@ -120,7 +112,7 @@ func getAddress(ip string, name string) {
 
 func delAddress(ip string, duration string, name string) {
 
-	getAddress(ip, name)
+	getAddress(ip)
 
 	delAddr := fmt.Sprintf("https://%s/rest/ip/firewall/address-list/%s", addr, resId)
 
@@ -159,7 +151,9 @@ func main() {
 
 	if flag.Arg(0) == "add" {
 		addAddress(flag.Arg(1), flag.Arg(2), flag.Arg(3))
-	} else {
+	} else if flag.Arg(0) == "del" {
 		delAddress(flag.Arg(1), flag.Arg(2), flag.Arg(3))
+	} else if flag.Arg(0) == "get" {
+		getAddress(flag.Arg(1))
 	}
 }
